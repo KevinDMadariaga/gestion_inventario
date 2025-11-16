@@ -9,7 +9,9 @@ class AppMenuCard extends StatelessWidget {
   final Color? color;
   final LinearGradient? gradient;
   final VoidCallback onTap;
-  final bool expanded; // true = estilo card horizontal, false = estilo tile compacto
+  final bool
+  expanded; // true = estilo card horizontal, false = estilo tile compacto
+  final double iconSize;
 
   const AppMenuCard({
     super.key,
@@ -20,6 +22,7 @@ class AppMenuCard extends StatelessWidget {
     this.gradient,
     required this.onTap,
     this.expanded = false,
+    this.iconSize = 48,
   });
 
   @override
@@ -33,23 +36,23 @@ class AppMenuCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             height: 130,
             child: Row(
               children: [
                 _buildIconBox(),
-                const SizedBox(width: 16),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        title.toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -77,40 +80,44 @@ class AppMenuCard extends StatelessWidget {
       );
     } else {
       // --- Estilo tile compacto (como en Home) ---
-      return Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+      // Use SizedBox.expand so the tile fills its grid cell => equal spacing
+      return SizedBox.expand(
+        child: Material(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.black12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: color ?? Colors.blue, size: 48),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.black,
-                    ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
                   ),
                 ],
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: color ?? Colors.blue, size: iconSize),
+                    const SizedBox(height: 10),
+                    Text(
+                      title.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -122,10 +129,14 @@ class AppMenuCard extends StatelessWidget {
   /// Construye el recuadro con ícono + gradiente (para estilo expanded).
   Widget _buildIconBox() {
     return Container(
-      width: 70,
-      height: 70,
+      width: 60,
+      height: 60,
       decoration: BoxDecoration(
-        gradient: gradient ?? LinearGradient(colors: [color ?? Colors.blue, color ?? Colors.blueAccent]),
+        gradient:
+            gradient ??
+            LinearGradient(
+              colors: [color ?? Colors.blue, color ?? Colors.blueAccent],
+            ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
