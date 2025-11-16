@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gestion_inventario/screens/home/home.dart';
 import 'package:gestion_inventario/services/mongo_service.dart';
+import 'package:gestion_inventario/view/home_view.dart';
 
   void main() {
 WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +32,7 @@ class MainApp extends StatelessWidget {
               body: Center(child: Text('Error al conectar con MongoDB')),
             );
           }
-          return const Home();
+          return HomeView();
         },
       ),
     );
