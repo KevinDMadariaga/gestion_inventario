@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gestion_inventario/ViewModel/historial_venta_viewmodel.dart';
 import 'package:gestion_inventario/models/historial_venta_model.dart';
-import 'package:gestion_inventario/screens/ventas/ventas_resumen.dart';
+import 'package:gestion_inventario/view/ventas_resumen_view.dart';
 
 class HistorialVentasView extends StatefulWidget {
   const HistorialVentasView({super.key});
@@ -319,7 +319,7 @@ class _HistorialVentasViewState extends State<HistorialVentasView> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ResumenVentasPage(),
+                      builder: (_) => const ResumenVentasView(),
                     ),
                   );
                 }
