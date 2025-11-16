@@ -5,8 +5,8 @@ import 'package:gestion_inventario/screens/apartados/apartado.dart';
 import 'package:gestion_inventario/screens/cambios/cambio_producto_venta_page.dart';
 import 'package:gestion_inventario/screens/prestamo/producto_prestado.dart';
 import 'package:gestion_inventario/screens/producto/inventario.dart';
-import 'package:gestion_inventario/screens/ventas/ventas_menu_page.dart';
 import 'package:gestion_inventario/screens/settings/configuracion_page.dart';
+import 'package:gestion_inventario/view/ventas_view.dart';
 
 /// ViewModel para la vista Home.
 /// Expone la lista de tiles y cualquier lógica relacionada con la vista.
@@ -18,7 +18,7 @@ class HomeViewModel {
       title: 'Punto de venta',
       icon: Icons.point_of_sale,
       color: const Color(0xFF0EA5E9),
-      page: const VentasMenuPage(),
+      page: const VentasView(),
     ),
     HomeTileData(
       title: 'Gestionar apartados',

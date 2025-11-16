@@ -2,81 +2,28 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:gestion_inventario/ViewModel/historial_venta_viewmodel.dart';
+import 'package:gestion_inventario/models/historial_venta_model.dart';
 import 'package:gestion_inventario/screens/ventas/ventas_resumen.dart';
-import 'package:intl/intl.dart';
-import 'package:gestion_inventario/services/mongo_service.dart';
 
-class HistorialVentasPage extends StatefulWidget {
-  const HistorialVentasPage({super.key});
+class HistorialVentasView extends StatefulWidget {
+  const HistorialVentasView({super.key});
 
   @override
-  State<HistorialVentasPage> createState() => _HistorialVentasPageState();
+  State<HistorialVentasView> createState() => _HistorialVentasViewState();
 }
 
-class _HistorialVentasPageState extends State<HistorialVentasPage> {
-  final _fmtFecha = DateFormat('dd/MM/yyyy HH:mm');
-  final _fmtMon = NumberFormat.currency(locale: 'es_CO', symbol: r'$');
-  Future<List<Map<String, dynamic>>>? _future;
-
+class _HistorialVentasViewState extends State<HistorialVentasView> {
+  late final HistorialVentaViewModel vm;
   bool _dialogAbierto = false;
 
   @override
   void initState() {
     super.initState();
-    _future = _cargar();
+    vm = HistorialVentaViewModel();
   }
 
-  // --- Helpers de fecha para filtrar "HOY" (hora local) ---
-  DateTime _parseLocal(dynamic v) {
-    try {
-      final d = DateTime.parse('$v');
-      return d.isUtc ? d.toLocal() : d;
-    } catch (_) {
-      return DateTime.fromMillisecondsSinceEpoch(0);
-    }
-  }
-
-  bool _inToday(DateTime d) {
-    final now = DateTime.now();
-    final ini = DateTime(now.year, now.month, now.day);
-    final fin = ini.add(const Duration(days: 1));
-    return !d.isBefore(ini) && d.isBefore(fin);
-  }
-
-  Future<List<Map<String, dynamic>>> _cargar() async {
-    final ventas = await MongoService().getVentas(); // trae todo
-
-    // Filtra SOLO ventas de HOY (hora local)
-    final hoy = ventas.where((v) {
-      final f = _parseLocal(v['fechaVenta']);
-      return _inToday(f);
-    }).toList();
-
-    // ⛔️ Ocultar siempre los cierres de apartado (solo sirven para la ganancia)
-    // y cualquier registro marcado explícitamente para no mostrar.
-    hoy.removeWhere((v) {
-      final tipo = ('${v['tipoVenta'] ?? ''}').toLowerCase().trim();
-      final ocultar = v['ocultarEnHistorial'] == true;
-      return ocultar || (tipo == 'apartado_pagado');
-    });
-
-    // Ordena desc por fecha de hoy
-    hoy.sort((a, b) {
-      final da = _parseLocal(a['fechaVenta']);
-      final db = _parseLocal(b['fechaVenta']);
-      return db.compareTo(da);
-    });
-
-    return hoy;
-  }
-
-  Future<void> _refresh() async {
-    final nuevo = await _cargar();
-    if (!mounted) return;
-    setState(() => _future = Future.value(nuevo));
-  }
-
-  // ---------- Helpers de imagen ----------
+  // ---------- Helpers de imagen (mantengo en la vista) ----------
   Widget _buildProductImageFromVentaItem(
     Map<String, dynamic> item, {
     double w = 44,
@@ -122,7 +69,6 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
     );
   }
 
-  // ---------- Diálogo fotográfico ----------
   Future<void> _abrirDialogoProducto(
     Map<String, dynamic> p,
     DateTime fechaVenta,
@@ -134,7 +80,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
     _dialogAbierto = true;
 
     final nombreP = '${p['nombre'] ?? ''}'.toUpperCase();
-    final precioP = _precioItem(p);
+    final precioP = vm.precioItem(p);
 
     Widget img = _imgPlaceholder(320, 320);
     final String b64 = (p['fotoBase64'] ?? '') as String;
@@ -208,7 +154,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          _fmtMon.format(precioP),
+                          vm.fmtMon.format(precioP),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -217,7 +163,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          _fmtFecha.format(fechaVenta),
+                          vm.fmtFecha.format(fechaVenta),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -233,9 +179,10 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
         ),
       ),
     );
+
+    _dialogAbierto = false;
   }
 
-  // ---------- Utils ----------
   String _tituloVenta(List productos) {
     if (productos.isEmpty) return 'VENTA';
     final p0 = (productos.first as Map).cast<String, dynamic>();
@@ -244,24 +191,65 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
     return '$nombre0 +${productos.length - 1} MÁS';
   }
 
-  double _precioItem(dynamic raw) {
-    final v = (raw is Map)
-        ? (raw['precioVendido'] ?? raw['precioVenta'] ?? 0)
-        : 0;
-    return (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0.0;
+  Widget _chipStat(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label: ', style: const TextStyle(color: Colors.black54)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
   }
 
-  double _asDouble(dynamic v) {
-    if (v is num) return v.toDouble();
-    return double.tryParse('$v') ?? 0.0;
+  Widget _chipTipo(String text, Color color) {
+    return Chip(
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      label: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      backgroundColor: color,
+    );
   }
 
-  // ---------- UI ----------
+  Widget _rowKV(
+    String k,
+    String v, {
+    bool strongRight = false,
+    bool emphasize = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(k),
+        Flexible(
+          child: Text(
+            v,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontWeight: strongRight ? FontWeight.bold : FontWeight.normal,
+              color: emphasize ? Colors.green[800] : null,
+              fontSize: emphasize ? 16 : 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const brandA = Color(0xFF16A34A); // green
-    const brandB = Color(0xFF0EA5E9); // cyan
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -278,14 +266,12 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
         foregroundColor: Colors.white,
         backgroundColor: const Color.fromRGBO(244, 143, 177, 1),
         elevation: 0,
-
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: TextButton.icon(
               style: TextButton.styleFrom(foregroundColor: Colors.white),
               onPressed: () async {
-                // Mostrar el cuadro de diálogo para ingresar la contraseña
                 final correctPassword = '0210';
                 final controller = TextEditingController();
                 final isValid = await showDialog<bool>(
@@ -301,26 +287,20 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        obscureText: true, // ocultar texto al escribir
+                        obscureText: true,
                       ),
                       actions: [
                         TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(false);
-                          },
+                          onPressed: () => Navigator.of(context).pop(false),
                           child: const Text('Cancelar'),
                         ),
                         TextButton(
                           onPressed: () {
                             final password = controller.text.trim();
                             if (password == correctPassword) {
-                              Navigator.of(
-                                context,
-                              ).pop(true); // Contraseña correcta
+                              Navigator.of(context).pop(true);
                             } else {
-                              Navigator.of(
-                                context,
-                              ).pop(false); // Contraseña incorrecta
+                              Navigator.of(context).pop(false);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Contraseña incorrecta'),
@@ -335,7 +315,6 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                   },
                 );
 
-                // Si la contraseña es correcta, navegar a la página de resumen
                 if (isValid ?? false) {
                   Navigator.push(
                     context,
@@ -352,37 +331,28 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _future,
+        onRefresh: () async => vm.refresh(),
+        child: FutureBuilder<List<VentaHistorialModel>>(
+          future: vm.future,
           builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
+            if (snap.connectionState == ConnectionState.waiting)
               return const Center(child: CircularProgressIndicator());
-            }
-            if (snap.hasError) {
+            if (snap.hasError)
               return Center(child: Text('Error: ${snap.error}'));
-            }
             final ventas = snap.data ?? [];
-            if (ventas.isEmpty) {
+            if (ventas.isEmpty)
               return const Center(child: Text('No hay ventas registradas hoy'));
-            }
 
-            // Resumen superior (solo hoy)
             final double totalGeneral = ventas.fold<double>(
               0.0,
-              (acc, v) =>
-                  acc +
-                  ((v['total'] is num)
-                      ? (v['total'] as num).toDouble()
-                      : double.tryParse('${v['total']}') ?? 0.0),
+              (acc, v) => acc + (v.total),
             );
             DateTime? ultima;
             for (final v in ventas) {
-              final f = _parseLocal(v['fechaVenta']);
-              ultima = (ultima == null || f.isAfter(ultima!)) ? f : ultima;
+              final f = vm.parseLocal(v.fechaVentaRaw);
+              ultima = (ultima == null || f.isAfter(ultima)) ? f : ultima;
             }
 
-            // Construye la lista: resumen + items
             final List<Widget> children = [];
 
             children.add(
@@ -398,7 +368,6 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-
                         child: const Icon(Icons.insights, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
@@ -414,20 +383,19 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                                 _chipStat('Ventas', '${ventas.length}'),
                                 _chipStat(
                                   'Ingresos',
-                                  _fmtMon.format(totalGeneral),
+                                  vm.fmtMon.format(totalGeneral),
                                 ),
                                 _chipStat(
                                   'Última',
                                   ultima == null
                                       ? '—'
-                                      : _fmtFecha.format(ultima!),
+                                      : vm.fmtFecha.format(ultima),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Mostrando únicamente las ventas del día actual. '
-                              'Para consultar otros días usa el botón “Resumen”.',
+                              'Mostrando únicamente las ventas del día actual. Para consultar otros días usa el botón “Resumen”.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.black54,
@@ -442,26 +410,24 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
               ),
             );
 
-            // Tarjetas de cada venta (de hoy)
             for (final v in ventas) {
-              final String tipoVenta = (v['tipoVenta'] as String?) ?? '';
-              final Map origenMap = (v['origen'] as Map?) ?? const {};
+              final String tipoVenta = v.tipoVenta;
+              final Map origenMap = v.origen;
               final String evento = '${origenMap['evento'] ?? ''}';
 
               final bool esCambio = tipoVenta == 'cambio';
               final bool esAbono = tipoVenta == 'abono_apartado';
-              // tratamos el abono final igual que un abono normal
               final bool esAbonoFinal = esAbono && (evento == 'abono_final');
 
-              final cliente = (v['cliente'] ?? {}) as Map;
+              final cliente = v.cliente;
               final nombreCliente = '${cliente['nombre'] ?? 'Sin nombre'}';
               final tel = '${cliente['telefono'] ?? ''}';
-              final subtotal = (v['subtotal'] ?? 0);
-              final descuento = (v['descuento'] ?? 0);
-              final total = (v['total'] ?? 0);
+              final subtotal = v.subtotal;
+              final descuento = v.descuento;
+              final total = v.total;
 
-              final fecha = _parseLocal(v['fechaVenta']);
-              final productos = (v['productos'] ?? []) as List;
+              final fecha = vm.parseLocal(v.fechaVentaRaw);
+              final productos = v.productos;
 
               children.add(
                 Card(
@@ -493,7 +459,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                         ),
                         child: const Icon(
                           Icons.shopping_cart,
-                          color: const Color.fromRGBO(244, 143, 177, 1),
+                          color: Color.fromRGBO(244, 143, 177, 1),
                         ),
                       ),
                       title: Column(
@@ -516,10 +482,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                               ),
                               if (esAbono || esAbonoFinal) ...[
                                 const SizedBox(width: 8),
-                                _chipTipo(
-                                  'ABONO',
-                                  Colors.indigo,
-                                ), // ← único chip
+                                _chipTipo('ABONO', Colors.indigo),
                               ],
                               if (esCambio) ...[
                                 const SizedBox(width: 8),
@@ -529,7 +492,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _fmtMon.format(_asDouble(total)),
+                            vm.fmtMon.format(vm.asDouble(total)),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -545,7 +508,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                _fmtFecha.format(fecha),
+                                vm.fmtFecha.format(fecha),
                                 style: const TextStyle(
                                   fontSize: 12.5,
                                   color: Colors.black87,
@@ -633,7 +596,7 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          _fmtMon.format(_precioItem(p)),
+                                          vm.fmtMon.format(vm.precioItem(p)),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
@@ -648,16 +611,19 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
                           ),
                           const SizedBox(height: 12),
                         ],
-                        _rowKV('Subtotal', _fmtMon.format(_asDouble(subtotal))),
+                        _rowKV(
+                          'Subtotal',
+                          vm.fmtMon.format(vm.asDouble(subtotal)),
+                        ),
                         const SizedBox(height: 4),
                         _rowKV(
                           'Descuento',
-                          _fmtMon.format(_asDouble(descuento)),
+                          vm.fmtMon.format(vm.asDouble(descuento)),
                         ),
                         const SizedBox(height: 6),
                         _rowKV(
                           'Total',
-                          _fmtMon.format(_asDouble(total)),
+                          vm.fmtMon.format(vm.asDouble(total)),
                           strongRight: true,
                           emphasize: true,
                         ),
@@ -672,64 +638,6 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
           },
         ),
       ),
-    );
-  }
-
-  // ---------- Pequeños builders de UI ----------
-  Widget _chipStat(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('$label: ', style: const TextStyle(color: Colors.black54)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-        ],
-      ),
-    );
-  }
-
-  Widget _chipTipo(String text, Color color) {
-    return Chip(
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      label: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      backgroundColor: color,
-    );
-  }
-
-  Widget _rowKV(
-    String k,
-    String v, {
-    bool strongRight = false,
-    bool emphasize = false,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(k),
-        Flexible(
-          child: Text(
-            v,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontWeight: strongRight ? FontWeight.bold : FontWeight.normal,
-              color: emphasize ? Colors.green[800] : null,
-              fontSize: emphasize ? 16 : 14,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
