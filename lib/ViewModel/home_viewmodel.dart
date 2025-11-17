@@ -4,8 +4,8 @@ import 'package:gestion_inventario/models/home_tile_data.dart';
 import 'package:gestion_inventario/screens/apartados/apartado.dart';
 import 'package:gestion_inventario/screens/cambios/cambio_producto_venta_page.dart';
 import 'package:gestion_inventario/screens/prestamo/producto_prestado.dart';
-import 'package:gestion_inventario/screens/producto/inventario.dart';
 import 'package:gestion_inventario/screens/settings/configuracion_page.dart';
+import 'package:gestion_inventario/view/inventario_view.dart';
 import 'package:gestion_inventario/view/ventas_view.dart';
 
 /// ViewModel para la vista Home.

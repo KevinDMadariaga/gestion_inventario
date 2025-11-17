@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:gestion_inventario/services/mongo_service.dart';
+import 'package:flutter/services.dart';
+import 'package:gestion_inventario/ViewModel/buscar_producto_viewmodel.dart';
 import 'package:intl/intl.dart';
 
 class BuscarInventarioPage extends StatefulWidget {
@@ -14,9 +15,10 @@ class BuscarInventarioPage extends StatefulWidget {
 
 class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
   final _busquedaController = TextEditingController();
-
   final FocusNode _searchFocus = FocusNode();
-  void _dismissKeyboard() => FocusScope.of(context).unfocus(); // 👈 nuevo
+  final vm = BuscarProductoViewModel();
+
+  void _dismissKeyboard() => FocusScope.of(context).unfocus();
   List<Map<String, dynamic>> _resultados = [];
 
   // moneda simple
@@ -48,35 +50,19 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
     final int token = ++_searchToken;
 
     try {
-      // 1) Trae base según si hay texto o no
-      List<Map<String, dynamic>> base;
-      if (q.isEmpty) {
-        // sin texto -> traemos TODO para que los chips funcionen solos
-        base = await MongoService().getData();
-      } else {
-        // con texto -> búsqueda por nombre (con fallback)
-        try {
-          base = await MongoService().getProductosByNombre(q);
-        } catch (_) {
-          final todos = await MongoService().getData();
-          base = todos.where((p) {
-            final n = (p['nombre'] ?? '').toString().toLowerCase();
-            return n.contains(q);
-          }).toList();
-        }
-      }
+      final base = await vm.search(q);
 
-      // 2) Aplica el filtro del chip (todos/disponible/apartado/vendido)
-      var filtrados = _aplicarFiltroEstado(base);
+      // Aplica el filtro del chip (todos/disponible/apartado/vendido)
+      var filtrados = vm.aplicarFiltroEstado(base, _estadoFiltro);
 
-      // 3) Ordena por nombre
+      // Ordena por nombre
       filtrados.sort(
         (a, b) => (a['nombre'] ?? '').toString().toLowerCase().compareTo(
           (b['nombre'] ?? '').toString().toLowerCase(),
         ),
       );
 
-      // 4) Publica resultados si sigue vigente el token
+      // Publica resultados si sigue vigente el token
       if (!mounted || token != _searchToken) return;
       setState(() => _resultados = filtrados);
     } catch (e) {
@@ -86,32 +72,6 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
         );
       }
     }
-  }
-
-  List<Map<String, dynamic>> _aplicarFiltroEstado(
-    List<Map<String, dynamic>> lista,
-  ) {
-    if (_estadoFiltro == 'todos') return lista;
-
-    return lista.where((p) {
-      final estado = (p['estado'] ?? 'disponible')
-          .toString()
-          .toLowerCase()
-          .trim();
-      switch (_estadoFiltro) {
-        case 'vendido':
-          return estado == 'vendido';
-        case 'apartado':
-          return estado == 'apartado' || estado == 'aparto';
-        case 'disponible':
-          // tratamos cualquier cosa distinta a vendido/apartado como disponible
-          return estado != 'vendido' &&
-              estado != 'apartado' &&
-              estado != 'aparto';
-        default:
-          return true;
-      }
-    }).toList();
   }
 
   static const List<double> _greyMatrix = <double>[
@@ -279,7 +239,6 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Imagen con gris + cinta diagonal si aplica
               SizedBox(
                 width: 260,
                 height: 260,
@@ -387,7 +346,6 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
             ),
           ],
         ),
-
         elevation: 0,
         foregroundColor: Colors.white,
         backgroundColor: const Color.fromRGBO(244, 143, 177, 1),

@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gestion_inventario/services/mongo_service.dart';
+import 'package:gestion_inventario/models/product_model.dart';
+import 'package:gestion_inventario/ViewModel/agregar_producto_viewmodel.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -177,21 +178,8 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
   Future<void> _cargarMarcas() async {
     setState(() => _cargandoMarcas = true);
     try {
-      final res = await MongoService().getMarcas();
-      final nombres =
-          (res)
-              .map((e) {
-                if (e is String) return e;
-                if (e is Map) {
-                  final n = (e['nombre'] ?? e['name'] ?? '').toString().trim();
-                  return n;
-                }
-                return e.toString().trim();
-              })
-              .where((s) => s.isNotEmpty)
-              .toSet()
-              .toList()
-            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final vm = AgregarProductoViewModel();
+      final nombres = await vm.getMarcas();
       if (!mounted) return;
       setState(() => _marcas = nombres);
     } catch (_) {
@@ -246,7 +234,8 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
     }
 
     try {
-      await MongoService().addMarca(s);
+      final vm = AgregarProductoViewModel();
+      await vm.addMarca(s);
       await _cargarMarcas();
       setState(() {
         if (!_marcas.contains(s)) {
@@ -315,22 +304,23 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
         fotoBase64 = base64Encode(bytes);
       }
 
-      final producto = {
-        'nombre': nombre?.trim(),
-        'talla': talla?.trim(),
-        'marca': marca?.trim(),
-        'categoria': categoria?.trim(),
-        'precioCompra': precioCompra,
-        'precioVenta': precioVenta,
-        'precioDescuento': precioDescuento ?? 0,
-        'fechaRegistro': fechaRegistro.toIso8601String(),
-        'foto': _foto?.path ?? '',
-        'fotoBase64': fotoBase64 ?? '',
-        'fotoMime': 'image/jpeg',
-        'estado': 'disponible',
-      };
+      final productModel = ProductModel(
+        nombre: nombre?.trim(),
+        talla: talla?.trim(),
+        marca: marca?.trim(),
+        categoria: categoria?.trim(),
+        precioCompra: precioCompra,
+        precioVenta: precioVenta,
+        precioDescuento: precioDescuento ?? 0,
+        fechaRegistro: fechaRegistro,
+        foto: _foto?.path ?? '',
+        fotoBase64: fotoBase64 ?? '',
+        fotoMime: 'image/jpeg',
+        estado: 'disponible',
+      );
 
-      await MongoService().saveProduct(producto);
+      final vm = AgregarProductoViewModel();
+      await vm.saveProduct(productModel);
 
       if (!mounted) return;
 
@@ -390,7 +380,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
-     _hideKeyboard();
+    _hideKeyboard();
   }
 
   // Selector de marca con menú hacia abajo + acciones
@@ -594,7 +584,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9\.,]'),
+                            RegExp(r'[0-9\\.,]'),
                           ),
                         ],
                         onSaved: (v) => precioCompra = _toDouble(v),
@@ -613,7 +603,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9\.,]'),
+                            RegExp(r'[0-9\\.,]'),
                           ),
                         ],
                         onSaved: (v) => precioVenta = _toDouble(v),
@@ -635,7 +625,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9\.,]'),
+                            RegExp(r'[0-9\\.,]'),
                           ),
                         ],
                         onSaved: (v) => precioDescuento = _toDouble(v),
