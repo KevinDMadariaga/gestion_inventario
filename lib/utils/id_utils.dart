@@ -16,4 +16,9 @@ class IdUtils {
     final mAny = RegExp(r'([0-9a-fA-F]{24})').firstMatch(s);
     return mAny?.group(1) ?? '';
   }
+
+  /// Genera un nuevo ID único usando ObjectId de MongoDB
+  static String generarId() {
+    return ObjectId().toHexString();
+  }
 }

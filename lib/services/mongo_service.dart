@@ -19,6 +19,7 @@ class MongoService {
     if (!_isConnected) {
       String uri =
           "mongodb+srv://serviceIA:mRsPYsAS7tb5xn6r@cluster0.sartini.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+          
 
       _db = await Db.create(uri);
       await _db.open();
