@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:gestion_inventario/screens/producto/agregar_producto.dart';
 import 'package:gestion_inventario/screens/producto/buscar_producto.dart';
-import 'package:gestion_inventario/widgets/app_menu_card.dart';
+import 'package:gestion_inventario/theme/app_colors.dart';
+import 'package:gestion_inventario/view/producto_view.dart';
 
 
 class InventarioMenuPage extends StatelessWidget {
@@ -14,50 +15,94 @@ class InventarioMenuPage extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         backgroundColor: Colors.pink[200],
-        foregroundColor: Colors.white,
         title: const Text(
           'Inventario',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.1,
+            color: Colors.white,
+          ),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+      body: Container(
+        color: AppColors.background,
+        child: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AppMenuCard(
-                icon: Icons.add_box,
-                title: 'Registrar producto',
-                subtitle: 'Agrega un nuevo producto al inventario.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF22C55E), Color(0xFF4ADE80)], // verde
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                expanded: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AgregarProductoPage()),
-                ),
+              _buildOpcionCard(
+                context,
+                titulo: 'Registrar producto',
+                icono: Icons.add_box,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProductoView()),
+                  );
+                },
               ),
-              const SizedBox(height: 16),
-              AppMenuCard(
-                icon: Icons.list_alt,
-                title: 'Lista de productos',
-                subtitle: 'Consulta todos los productos registrados.',
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)], // azul
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                expanded: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BuscarInventarioPage()),
-                ),
+              const SizedBox(height: 30),
+              _buildOpcionCard(
+                context,
+                titulo: 'Lista de productos',
+                icono: Icons.list_alt,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BuscarInventarioPage()),
+                  );
+                },
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpcionCard(
+    BuildContext context, {
+    required String titulo,
+    required IconData icono,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.accent, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icono,
+              size: 60,
+              color: AppColors.accent,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              titulo,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
