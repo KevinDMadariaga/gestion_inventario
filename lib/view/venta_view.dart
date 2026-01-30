@@ -236,101 +236,126 @@ class _VentaViewState extends State<VentaView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> buscarYMostrar() async {
+              await _buscarProductos(_buscarCtrl.text.trim());
+              if (mounted) setModalState(() {});
+            }
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.85,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              builder: (context, scrollController) => Column(
                 children: [
-                  const SizedBox(width: 40),
-                  Text(
-                    'Buscar producto',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const SizedBox(width: 40),
+                        Text(
+                          'Buscar producto',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                    color: AppColors.textSecondary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _buscarCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Buscar producto',
+                              hintText: 'Escribe el nombre del producto...',
+                              prefixIcon: const Icon(Icons.search, color: AppColors.accent),
+                              suffixIcon: _buscarCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _buscarCtrl.clear();
+                                        setModalState(() {
+                                          _resultadosBusqueda = [];
+                                        });
+                                      },
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                              ),
+                            ),
+                            onSubmitted: (_) => buscarYMostrar(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.search, color: AppColors.accent),
+                          onPressed: buscarYMostrar,
+                          tooltip: 'Buscar',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _resultadosBusqueda.isEmpty
+                        ? Center(
+                            child: Text(
+                              _buscarCtrl.text.isEmpty
+                                  ? 'Escribe y presiona buscar'
+                                  : 'No hay productos',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            itemCount: _resultadosBusqueda.length,
+                            itemBuilder: (context, index) {
+                              final producto = _resultadosBusqueda[index];
+                              return ListTile(
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: _buildProductImage(producto, w: 50, h: 50),
+                                ),
+                                title: Text(
+                                  producto['nombre']?.toString() ?? 'Sin nombre',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  _mon.format(_asDouble(producto['precioVenta'])),
+                                  style: const TextStyle(color: AppColors.accent),
+                                ),
+                                onTap: () {
+                                  _mostrarDetallesProducto(producto);
+                                },
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _buscarCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Buscar producto',
-                  hintText: 'Escribe el nombre del producto...',
-                  prefixIcon: const Icon(Icons.search, color: AppColors.accent),
-                  suffixIcon: _buscarCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _buscarCtrl.clear();
-                            setState(() {
-                              _resultadosBusqueda = [];
-                            });
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _resultadosBusqueda.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No hay productos',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: _resultadosBusqueda.length,
-                      itemBuilder: (context, index) {
-                        final producto = _resultadosBusqueda[index];
-                        return ListTile(
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: _buildProductImage(producto, w: 50, h: 50),
-                          ),
-                          title: Text(
-                            producto['nombre']?.toString() ?? 'Sin nombre',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            _mon.format(_asDouble(producto['precioVenta'])),
-                            style: const TextStyle(color: AppColors.accent),
-                          ),
-                          onTap: () {
-                            _mostrarDetallesProducto(producto);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
   
@@ -577,10 +602,11 @@ class _VentaViewState extends State<VentaView> {
               const SizedBox(height: 12),
               Center(
                 child: Text(
-                  'Descuento disponible',
+                  'Precio mínimo: ' + _mon.format(_asDouble(producto['precioMinimo'])),
                   style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
                   ),
                 ),
               ),
