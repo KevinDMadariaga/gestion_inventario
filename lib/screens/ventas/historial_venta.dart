@@ -48,7 +48,9 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
 
     // Filtra SOLO ventas de HOY (hora local)
     final hoy = ventas.where((v) {
-      final f = _parseLocal(v['fechaVenta']);
+      // Compatibilidad: algunas ventas usan 'fechaVenta' y otras el campo 'fecha'
+      final rawFecha = v['fechaVenta'] ?? v['fecha'];
+      final f = _parseLocal(rawFecha);
       return _inToday(f);
     }).toList();
 
@@ -60,10 +62,10 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
       return ocultar || (tipo == 'apartado_pagado');
     });
 
-    // Ordena desc por fecha de hoy
+    // Ordena desc por fecha de hoy (misma compatibilidad de campo fecha)
     hoy.sort((a, b) {
-      final da = _parseLocal(a['fechaVenta']);
-      final db = _parseLocal(b['fechaVenta']);
+      final da = _parseLocal(a['fechaVenta'] ?? a['fecha']);
+      final db = _parseLocal(b['fechaVenta'] ?? b['fecha']);
       return db.compareTo(da);
     });
 
@@ -246,7 +248,12 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
 
   double _precioItem(dynamic raw) {
     final v = (raw is Map)
-        ? (raw['precioVendido'] ?? raw['precioVenta'] ?? 0)
+        // precio de estructuras antiguas: precioVendido / precioVenta
+        ? (raw['precioVendido'] ??
+              raw['precioVenta'] ??
+              // precio de VentaItem (modelo Venta): precioUnitario
+              raw['precioUnitario'] ??
+              0)
         : 0;
     return (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0.0;
   }
@@ -445,7 +452,12 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
             // Tarjetas de cada venta (de hoy)
             for (final v in ventas) {
               final String tipoVenta = (v['tipoVenta'] as String?) ?? '';
-              final Map origenMap = (v['origen'] as Map?) ?? const {};
+
+              // 'origen' puede ser Map o cualquier otra cosa
+              final dynamic rawOrigen = v['origen'];
+              final Map origenMap = rawOrigen is Map
+                  ? rawOrigen as Map
+                  : const {};
               final String evento = '${origenMap['evento'] ?? ''}';
 
               final bool esCambio = tipoVenta == 'cambio';
@@ -453,15 +465,27 @@ class _HistorialVentasPageState extends State<HistorialVentasPage> {
               // tratamos el abono final igual que un abono normal
               final bool esAbonoFinal = esAbono && (evento == 'abono_final');
 
-              final cliente = (v['cliente'] ?? {}) as Map;
-              final nombreCliente = '${cliente['nombre'] ?? 'Sin nombre'}';
-              final tel = '${cliente['telefono'] ?? ''}';
+              // 'cliente' puede venir como Map {nombre, telefono} o como String
+              final dynamic rawCliente = v['cliente'];
+              String nombreCliente;
+              String tel;
+              if (rawCliente is Map) {
+                nombreCliente = '${rawCliente['nombre'] ?? 'Sin nombre'}';
+                tel = '${rawCliente['telefono'] ?? ''}';
+              } else {
+                nombreCliente = '${rawCliente ?? 'Sin nombre'}';
+                tel = '';
+              }
+
               final subtotal = (v['subtotal'] ?? 0);
               final descuento = (v['descuento'] ?? 0);
               final total = (v['total'] ?? 0);
 
-              final fecha = _parseLocal(v['fechaVenta']);
-              final productos = (v['productos'] ?? []) as List;
+              // Compatibilidad de fecha: 'fechaVenta' o 'fecha'
+              final fecha = _parseLocal(v['fechaVenta'] ?? v['fecha']);
+
+              // Compatibilidad de productos: algunos docs usan 'productos', otros 'items'
+              final productos = (v['productos'] ?? v['items'] ?? []) as List;
 
               children.add(
                 Card(

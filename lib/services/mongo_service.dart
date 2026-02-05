@@ -19,7 +19,6 @@ class MongoService {
     if (!_isConnected) {
       String uri =
           "mongodb+srv://serviceIA:mRsPYsAS7tb5xn6r@cluster0.sartini.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-          
 
       _db = await Db.create(uri);
       await _db.open();
@@ -107,12 +106,14 @@ class MongoService {
     }
   }
 
-// Dentro de MongoService
-Future<void> eliminarPrestamo(String prestamoId) async {
-  final db = await MongoService()._db;
-  final prestamosCollection = db.collection('prestamos');
-  await prestamosCollection.deleteOne(where.eq('_id', ObjectId.fromHexString(prestamoId)));
-}
+  // Dentro de MongoService
+  Future<void> eliminarPrestamo(String prestamoId) async {
+    final db = await MongoService()._db;
+    final prestamosCollection = db.collection('prestamos');
+    await prestamosCollection.deleteOne(
+      where.eq('_id', ObjectId.fromHexString(prestamoId)),
+    );
+  }
 
   Future<void> actualizarApartado(
     String idHex, {
@@ -263,10 +264,14 @@ Future<void> eliminarPrestamo(String prestamoId) async {
 
     final objectIds = <ObjectId>[];
     for (final id in ids) {
-      try {
-        objectIds.add(ObjectId.parse(id));
-      } catch (_) {
-        // si tus _id no son ObjectId, puedes actualizar por string:
+      // Normalizamos el id por si viene como 'ObjectId("...")' u otros formatos
+      final hex = _hexFromAnyId(id);
+
+      if (_isValidHex(hex)) {
+        // Es un ObjectId válido -> lo usamos para actualizar por ObjectId
+        objectIds.add(ObjectId.fromHexString(hex));
+      } else {
+        // _id guardado como String simple -> actualizamos por igualdad de string
         await coll.update(
           where.eq('_id', id),
           modify

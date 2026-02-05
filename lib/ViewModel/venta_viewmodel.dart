@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gestion_inventario/models/venta.dart';
+import 'package:gestion_inventario/services/mongo_service.dart';
 import 'package:gestion_inventario/utils/id_utils.dart';
 
 /// ViewModel para la gestión de ventas.
@@ -164,14 +165,17 @@ class VentaViewModel extends ChangeNotifier {
     );
   }
 
-  // Guardar venta (aquí se integraría con el servicio de base de datos)
+  // Guardar venta y marcar productos como vendidos
   Future<bool> guardarVenta() async {
     try {
       final venta = crearVenta();
-      
-      // TODO: Integrar con MongoService para guardar la venta
-      // await MongoService.instance.guardarVenta(venta);
-      
+      // Guardar la venta en la base de datos
+      await MongoService().saveVenta(venta.toJson());
+
+      // Marcar productos como vendidos
+      final ids = venta.items.map((item) => item.productoId).toList();
+      await MongoService().marcarProductosVendidos(ids);
+
       limpiarCarrito();
       return true;
     } catch (e) {

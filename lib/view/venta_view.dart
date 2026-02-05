@@ -18,13 +18,12 @@ class _VentaViewState extends State<VentaView> {
   late VentaViewModel _viewModel;
   final _buscarCtrl = TextEditingController();
   final _clienteCtrl = TextEditingController();
-  final _descuentoCtrl = TextEditingController();
-  
+
   List<Map<String, dynamic>> _resultadosBusqueda = [];
   Map<String, dynamic>? _productoSeleccionado;
   List<Map<String, dynamic>> _productosAgregados = [];
   Timer? _debounce;
-  
+
   final _mon = NumberFormat('\$#,##0', 'es_CO');
 
   @override
@@ -44,14 +43,14 @@ class _VentaViewState extends State<VentaView> {
     _debounce?.cancel();
     _buscarCtrl.dispose();
     _clienteCtrl.dispose();
-    _descuentoCtrl.dispose();
+
     super.dispose();
   }
 
   void _onViewModelChanged() {
     setState(() {});
   }
-  
+
   void _onBuscarChanged() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () async {
@@ -62,7 +61,8 @@ class _VentaViewState extends State<VentaView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      // Permitimos que el Scaffold se ajuste cuando aparece el teclado
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
@@ -77,36 +77,35 @@ class _VentaViewState extends State<VentaView> {
           ),
         ),
       ),
-      body: Container(
-        color: AppColors.background,
-        child: Column(
-          children: [
-            if (_productosAgregados.isEmpty) ...[
-              const Spacer(),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
+      body: SafeArea(
+        child: Container(
+          color: AppColors.background,
+          child: Column(
+            children: [
+              if (_productosAgregados.isEmpty) ...[
+                const Spacer(),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: _buildBotonAgregarProducto(),
+                  ),
+                ),
+                const Spacer(),
+              ],
+              if (_productosAgregados.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: _buildListaProductosAgregados(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                   child: _buildBotonAgregarProducto(),
                 ),
-              ),
-              const Spacer(),
+                Expanded(child: _buildResumenVentaFijo()),
+              ],
+              if (_productosAgregados.isEmpty) _buildResumenVentaFijo(),
             ],
-            if (_productosAgregados.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: _buildListaProductosAgregados(),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: _buildBotonAgregarProducto(),
-              ),
-              Expanded(
-                child: _buildResumenVentaFijo(),
-              ),
-            ],
-            if (_productosAgregados.isEmpty)
-              _buildResumenVentaFijo(),
-          ],
+          ),
         ),
       ),
     );
@@ -121,21 +120,20 @@ class _VentaViewState extends State<VentaView> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.accent, width: 2),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Productos agregados',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Expanded(
             child: ListView.builder(
               itemCount: _productosAgregados.length,
-              itemBuilder: (context, index) => _buildProductoAgregadoItem(index),
+              itemBuilder: (context, index) =>
+                  _buildProductoAgregadoItem(index),
             ),
           ),
         ],
@@ -145,51 +143,77 @@ class _VentaViewState extends State<VentaView> {
 
   Widget _buildProductoAgregadoItem(int index) {
     final producto = _productosAgregados[index];
+    final double precioActual = _asDouble(producto['precioVenta']);
+    final double precioOriginal = _asDouble(
+      producto['precioVentaOriginal'] ?? producto['precioVenta'],
+    );
+    final double descuento = (precioOriginal - precioActual) > 0
+        ? (precioOriginal - precioActual)
+        : 0;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _buildProductImage(producto, w: 60, h: 60),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  producto['nombre']?.toString() ?? 'Sin nombre',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _mon.format(_asDouble(producto['precioVenta'])),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.accent,
-                  ),
-                ),
-              ],
+      child: InkWell(
+        onTap: () => _mostrarDialogoDescuentoProducto(index),
+        borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _buildProductImage(producto, w: 60, h: 60),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.red, size: 20),
-            onPressed: () {
-              setState(() {
-                _productosAgregados.removeAt(index);
-              });
-            },
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    producto['nombre']?.toString() ?? 'Sin nombre',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        _mon.format(precioActual),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                      if (descuento > 0) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '- ${_mon.format(descuento)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.red, size: 20),
+              onPressed: () {
+                setState(() {
+                  _productosAgregados.removeAt(index);
+                });
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -215,7 +239,7 @@ class _VentaViewState extends State<VentaView> {
             const SizedBox(width: 12),
             Text(
               _productosAgregados.isEmpty
-                  ? 'Agregar producto' 
+                  ? 'Agregar producto'
                   : 'Agregar otro producto',
               style: TextStyle(
                 fontSize: 14,
@@ -228,7 +252,7 @@ class _VentaViewState extends State<VentaView> {
       ),
     );
   }
-  
+
   void _mostrarModalBusqueda() {
     showModalBottomSheet(
       context: context,
@@ -243,6 +267,7 @@ class _VentaViewState extends State<VentaView> {
               await _buscarProductos(_buscarCtrl.text.trim());
               if (mounted) setModalState(() {});
             }
+
             return DraggableScrollableSheet(
               expand: false,
               initialChildSize: 0.85,
@@ -251,7 +276,10 @@ class _VentaViewState extends State<VentaView> {
               builder: (context, scrollController) => Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -282,7 +310,10 @@ class _VentaViewState extends State<VentaView> {
                             decoration: InputDecoration(
                               labelText: 'Buscar producto',
                               hintText: 'Escribe el nombre del producto...',
-                              prefixIcon: const Icon(Icons.search, color: AppColors.accent),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: AppColors.accent,
+                              ),
                               suffixIcon: _buscarCtrl.text.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.clear),
@@ -299,7 +330,10 @@ class _VentaViewState extends State<VentaView> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                                borderSide: const BorderSide(
+                                  color: AppColors.accent,
+                                  width: 2,
+                                ),
                               ),
                             ),
                             onSubmitted: (_) => buscarYMostrar(),
@@ -307,7 +341,10 @@ class _VentaViewState extends State<VentaView> {
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.search, color: AppColors.accent),
+                          icon: const Icon(
+                            Icons.search,
+                            color: AppColors.accent,
+                          ),
                           onPressed: buscarYMostrar,
                           tooltip: 'Buscar',
                         ),
@@ -333,15 +370,26 @@ class _VentaViewState extends State<VentaView> {
                               return ListTile(
                                 leading: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: _buildProductImage(producto, w: 50, h: 50),
+                                  child: _buildProductImage(
+                                    producto,
+                                    w: 50,
+                                    h: 50,
+                                  ),
                                 ),
                                 title: Text(
-                                  producto['nombre']?.toString() ?? 'Sin nombre',
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  producto['nombre']?.toString() ??
+                                      'Sin nombre',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 subtitle: Text(
-                                  _mon.format(_asDouble(producto['precioVenta'])),
-                                  style: const TextStyle(color: AppColors.accent),
+                                  _mon.format(
+                                    _asDouble(producto['precioVenta']),
+                                  ),
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                  ),
                                 ),
                                 onTap: () {
                                   _mostrarDetallesProducto(producto);
@@ -358,16 +406,12 @@ class _VentaViewState extends State<VentaView> {
       },
     );
   }
-  
 
   Widget _buildResumenVentaFijo() {
     double totalProductos = _productosAgregados.fold(0, (sum, producto) {
       return sum + _asDouble(producto['precioVenta']);
     });
-    
-    double descuentoTotal = _asDouble(_descuentoCtrl.text.replaceAll(',', '.'));
-    double totalFinal = (totalProductos - descuentoTotal).clamp(0.0, double.infinity);
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Column(
@@ -382,38 +426,13 @@ class _VentaViewState extends State<VentaView> {
             ),
           ),
           const SizedBox(height: 10),
-          _buildResumenFila(
-            'Valor productos:',
-            _mon.format(totalProductos),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _descuentoCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Agregar descuento',
-              hintText: '0',
-              prefixIcon: const Icon(Icons.discount),
-              prefixIconColor: Colors.orange,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.orange, width: 2),
-              ),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
+          _buildResumenFila('Valor productos:', _mon.format(totalProductos)),
           const SizedBox(height: 6),
-          Divider(
-            color: AppColors.divider,
-            thickness: 2,
-          ),
+          Divider(color: AppColors.divider, thickness: 2),
           const SizedBox(height: 10),
           _buildResumenFila(
             'Total:',
-            _mon.format(totalFinal),
+            _mon.format(totalProductos),
             isBold: true,
             fontSize: 22,
             color: AppColors.accent,
@@ -459,7 +478,8 @@ class _VentaViewState extends State<VentaView> {
   }
 
   Widget _buildBotonGuardar() {
-    final bool habilitado = _productosAgregados.isNotEmpty && _clienteCtrl.text.trim().isNotEmpty;
+    final bool habilitado =
+        _productosAgregados.isNotEmpty && _clienteCtrl.text.trim().isNotEmpty;
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -476,20 +496,197 @@ class _VentaViewState extends State<VentaView> {
         ),
         child: const Text(
           'Guardar Venta',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
-  
+
   double _asDouble(dynamic v) {
     if (v is num) return v.toDouble();
     return double.tryParse('$v') ?? 0.0;
   }
-  
+
+  void _mostrarDialogoDescuentoProducto(int index) {
+    final producto = _productosAgregados[index];
+    final double precioOriginal = _asDouble(
+      producto['precioVentaOriginal'] ?? producto['precioVenta'],
+    );
+    final double precioActual = _asDouble(producto['precioVenta']);
+
+    final double descuentoInicial = (precioOriginal - precioActual) > 0
+        ? (precioOriginal - precioActual)
+        : 0;
+
+    final TextEditingController descuentoCtrl = TextEditingController(
+      text: descuentoInicial > 0 ? descuentoInicial.toStringAsFixed(0) : '',
+    );
+
+    showDialog(
+      
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final double descuentoIngresado = _asDouble(
+              descuentoCtrl.text.replaceAll(',', '.'),
+            );
+            final double descuentoAplicado = descuentoIngresado.clamp(
+              0.0,
+              precioOriginal,
+            );
+            final double nuevoPrecio = (precioOriginal - descuentoAplicado)
+                .clamp(0.0, double.infinity);
+
+            final nombre = (producto['nombre']?.toString() ?? 'Sin nombre')
+                .toUpperCase();
+
+            final viewInsets = MediaQuery.of(context).viewInsets;
+            final bottomInset = viewInsets.bottom;
+
+            final size = MediaQuery.of(context).size;
+
+            return AlertDialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: bottomInset > 0 ? 8 : 24,
+              ),
+              content: SizedBox(
+                width: size.width * 0.7,
+                height: size.width * 0.7,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: bottomInset > 0 ? 12 : 0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildProductImage(producto, w: 120, h: 120),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        nombre,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'PRECIO ACTUAL',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _mon.format(nuevoPrecio),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'PRECIO ORIGINAL: ${_mon.format(precioOriginal)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Text(
+                            'Descuento',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.accent.withOpacity(0.3),
+                                ),
+                              ),
+                              child: TextField(
+                                controller: descuentoCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                textAlign: TextAlign.center,
+                                decoration: const InputDecoration(
+                                  hintText: '',
+                                  border: InputBorder.none,
+                                ),
+                                onChanged: (_) => setStateDialog(() {}),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final double dIngresado = _asDouble(
+                      descuentoCtrl.text.replaceAll(',', '.'),
+                    );
+                    final double dAplicado = dIngresado.clamp(
+                      0.0,
+                      precioOriginal,
+                    );
+                    final double precioFinal = (precioOriginal - dAplicado)
+                        .clamp(0.0, double.infinity);
+
+                    setState(() {
+                      _productosAgregados[index]['precioVenta'] = precioFinal;
+                    });
+
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Aplicar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildProductImage(
     Map<String, dynamic> doc, {
     double w = 44,
@@ -530,7 +727,7 @@ class _VentaViewState extends State<VentaView> {
       child: Icon(broken ? Icons.broken_image : Icons.photo, size: w * 0.5),
     );
   }
-  
+
   Future<void> _buscarProductos(String q) async {
     if (q.isEmpty) {
       setState(() => _resultadosBusqueda = []);
@@ -565,79 +762,127 @@ class _VentaViewState extends State<VentaView> {
       }
     }
   }
-  
+
   void _mostrarDetallesProducto(Map<String, dynamic> producto) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Center(
-          child: Text(
-            producto['nombre']?.toString() ?? 'Sin nombre',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: _buildProductImage(producto, w: 200, h: 200),
+      builder: (context) {
+        final size = MediaQuery.of(context).size;
+        bool mostrarMinimo = false;
+
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final String precioMinimoTexto = mostrarMinimo
+                ? _mon.format(_asDouble(producto['precioMinimo']))
+                : '********';
+
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 15,
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              title: Center(
+                child: Text(
+                  (producto['nombre']?.toString() ?? 'Sin nombre')
+                      .toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: Text(
-                  _mon.format(_asDouble(producto['precioVenta'])),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.accent,
+              content: SizedBox(
+                width: size.width * 0.7,
+                height: size.width * 0.7,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: _buildProductImage(producto, w: 220, h: 220),
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+                      Center(
+                        child: Text(
+                          'Precio venta: ' +
+                              _mon.format(_asDouble(producto['precioVenta'])),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (mostrarMinimo) ...[
+                            Text(
+                              'Precio mínimo: $precioMinimoTexto',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          IconButton(
+                            icon: Icon(
+                              mostrarMinimo
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: AppColors.accent,
+                            ),
+                            iconSize: 30,
+                            onPressed: () {
+                              setStateDialog(() {
+                                mostrarMinimo = !mostrarMinimo;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  'Precio mínimo: ' + _mon.format(_asDouble(producto['precioMinimo'])),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange[800],
-                  ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _seleccionarProducto(producto);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Aceptar'),
-          ),
-        ],
-      ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _seleccionarProducto(producto);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-
   void _seleccionarProducto(Map<String, dynamic> producto) {
     setState(() {
-      _productosAgregados.add(producto);
+      final Map<String, dynamic> copia = Map<String, dynamic>.from(producto);
+      // Guardamos el precio original para poder calcular/deshacer descuentos
+      copia['precioVentaOriginal'] = _asDouble(copia['precioVenta']);
+      _productosAgregados.add(copia);
       _resultadosBusqueda = [];
       _buscarCtrl.clear();
     });
@@ -651,20 +896,13 @@ class _VentaViewState extends State<VentaView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
       for (var producto in _productosAgregados) {
         final precioVenta = _asDouble(producto['precioVenta']);
         final precioCompra = _asDouble(producto['precioCompra']);
-        final descuento = _productosAgregados.length > 1 
-            ? _asDouble(_descuentoCtrl.text.replaceAll(',', '.')) / _productosAgregados.length
-            : _asDouble(_descuentoCtrl.text.replaceAll(',', '.'));
-        
-        _viewModel.setDescuento(descuento);
         _viewModel.agregarItem(
           productoId: producto['_id'].toString(),
           nombre: producto['nombre']?.toString() ?? 'Sin nombre',
@@ -673,7 +911,7 @@ class _VentaViewState extends State<VentaView> {
           costoUnitario: precioCompra,
         );
       }
-      
+
       final exito = await _viewModel.guardarVenta();
       if (!mounted) return;
       Navigator.pop(context);
@@ -686,14 +924,13 @@ class _VentaViewState extends State<VentaView> {
             duration: Duration(seconds: 2),
           ),
         );
-        
+
         setState(() {
           _productosAgregados = [];
-          _descuentoCtrl.clear();
           _clienteCtrl.text = 'Cliente General';
           _buscarCtrl.clear();
         });
-        
+
         _viewModel.setCliente('Cliente General');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -707,10 +944,7 @@ class _VentaViewState extends State<VentaView> {
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppColors.error,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
       );
     }
   }

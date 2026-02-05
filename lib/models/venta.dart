@@ -58,7 +58,6 @@ class Venta {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'cliente': cliente,
       'fecha': fecha.toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(),
       'subtotal': subtotal,
@@ -66,15 +65,13 @@ class Venta {
       'total': total,
       'ganancia': ganancia,
       'metodoPago': metodoPago,
-      'notas': notas,
-      'estado': estado.name,
     };
   }
 
   factory Venta.fromJson(Map<String, dynamic> json) {
     return Venta(
       id: json['id'] as String,
-      cliente: json['cliente'] as String,
+      cliente: (json['cliente'] as String?) ?? 'Cliente General',
       fecha: DateTime.parse(json['fecha'] as String),
       items: (json['items'] as List)
           .map((item) => VentaItem.fromJson(item as Map<String, dynamic>))
@@ -83,12 +80,14 @@ class Venta {
       descuento: (json['descuento'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num).toDouble(),
       ganancia: (json['ganancia'] as num).toDouble(),
-      metodoPago: json['metodoPago'] as String,
+      metodoPago: (json['metodoPago'] as String?) ?? MetodoPago.efectivo.name,
       notas: json['notas'] as String?,
-      estado: VentaEstado.values.firstWhere(
-        (e) => e.name == json['estado'],
-        orElse: () => VentaEstado.completada,
-      ),
+      estado: json['estado'] != null
+          ? VentaEstado.values.firstWhere(
+              (e) => e.name == json['estado'],
+              orElse: () => VentaEstado.completada,
+            )
+          : VentaEstado.completada,
     );
   }
 }
@@ -157,16 +156,6 @@ class VentaItem {
   }
 }
 
-enum VentaEstado {
-  pendiente,
-  completada,
-  cancelada,
-  devuelta,
-}
+enum VentaEstado { pendiente, completada, cancelada, devuelta }
 
-enum MetodoPago {
-  efectivo,
-  tarjeta,
-  transferencia,
-  mixto,
-}
+enum MetodoPago { efectivo, tarjeta, transferencia, mixto }

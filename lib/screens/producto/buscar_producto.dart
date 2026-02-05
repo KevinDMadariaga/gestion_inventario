@@ -255,6 +255,11 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
         : num.tryParse('${p['precioDescuento']}') ?? 0;
     final double precioDescuento = pdRaw.toDouble();
 
+    final num pmRaw = (p['precioMinimo'] is num)
+        ? p['precioMinimo'] as num
+        : num.tryParse('${p['precioMinimo']}') ?? 0;
+    final double precioMinimo = pmRaw.toDouble();
+
     final estado = (p['estado'] ?? '').toString().toLowerCase().trim();
     final bool isSold = estado == 'vendido';
     final bool isHold = estado == 'apartado' || estado == 'aparto';
@@ -263,108 +268,149 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-        title: Center(
-          child: Text(
-            (p['nombre'] ?? '').toString().toUpperCase(),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              letterSpacing: 1.2,
+      builder: (_) {
+        bool mostrarMinimo = false;
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 30,
+              vertical: 40,
             ),
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Imagen con gris + cinta diagonal si aplica
-              SizedBox(
-                width: 260,
-                height: 260,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: (isSold || isHold)
-                          ? ColorFiltered(
-                              colorFilter: const ColorFilter.matrix(
-                                _greyMatrix,
+            title: Center(
+              child: Text(
+                (p['nombre'] ?? '').toString().toUpperCase(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Imagen con gris + cinta diagonal si aplica
+                  SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: (isSold || isHold)
+                              ? ColorFiltered(
+                                  colorFilter: const ColorFilter.matrix(
+                                    _greyMatrix,
+                                  ),
+                                  child: _buildProductoImage(
+                                    p,
+                                    w: 260,
+                                    h: 260,
+                                    radius: 12,
+                                  ),
+                                )
+                              : _buildProductoImage(
+                                  p,
+                                  w: 260,
+                                  h: 260,
+                                  radius: 12,
+                                ),
+                        ),
+                        if (badgeText != null)
+                          Center(
+                            child: Transform.rotate(
+                              angle: -0.785398, // -45°
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: badgeColor.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  badgeText,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
                               ),
-                              child: _buildProductoImage(
-                                p,
-                                w: 260,
-                                h: 260,
-                                radius: 12,
-                              ),
-                            )
-                          : _buildProductoImage(p, w: 260, h: 260, radius: 12),
+                            ),
+                          ),
+                      ],
                     ),
-                    if (badgeText != null)
-                      Center(
-                        child: Transform.rotate(
-                          angle: -0.785398, // -45°
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 6,
+                  ),
+                  const SizedBox(height: 16),
+                  _estadoChip(estado),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Valor: ${_mon.format(precioVenta)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (precioMinimo > 0) ...[
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => mostrarMinimo = !mostrarMinimo),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            mostrarMinimo
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            mostrarMinimo ? 'Ocultar mínimo' : 'Mostrar mínimo',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
                             ),
-                            decoration: BoxDecoration(
-                              color: badgeColor.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              badgeText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 2,
-                              ),
-                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (mostrarMinimo)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Mínimo: ${_mon.format(precioMinimo)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                   ],
-                ),
+                  const SizedBox(height: 8),
+                  if ((p['talla'] ?? '').toString().isNotEmpty)
+                    Text('Talla: ${p['talla']}'),
+                  if ((p['categoria'] ?? '').toString().isNotEmpty)
+                    Text('Categoría: ${p['categoria']}'),
+                ],
               ),
-              const SizedBox(height: 16),
-              _estadoChip(estado),
-              const SizedBox(height: 14),
-              Text(
-                'Valor: ${_mon.format(precioVenta)}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
               ),
-              if (precioDescuento > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Mínimo: ${_mon.format(precioDescuento)}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.green,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              if ((p['talla'] ?? '').toString().isNotEmpty)
-                Text('Talla: ${p['talla']}'),
-              if ((p['categoria'] ?? '').toString().isNotEmpty)
-                Text('Categoría: ${p['categoria']}'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

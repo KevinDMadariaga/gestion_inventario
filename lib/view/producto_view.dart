@@ -20,7 +20,7 @@ class _ProductoViewState extends State<ProductoView> {
   final _precioCompraCtrl = TextEditingController();
   final _precioVentaCtrl = TextEditingController();
   final _precioMinimoCtrl = TextEditingController();
-  
+
   late ProductoViewModel _viewModel;
   File? _imagenSeleccionada;
   String? _imagenBase64;
@@ -52,7 +52,7 @@ class _ProductoViewState extends State<ProductoView> {
         maxHeight: 800,
         imageQuality: 85,
       );
-      
+
       if (imagen != null) {
         final File file = File(imagen.path);
         final bytes = await file.readAsBytes();
@@ -91,7 +91,10 @@ class _ProductoViewState extends State<ProductoView> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.accent),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.accent,
+                ),
                 title: const Text('Seleccionar de galería'),
                 onTap: () {
                   Navigator.pop(context);
@@ -122,14 +125,23 @@ class _ProductoViewState extends State<ProductoView> {
       return;
     }
 
+    // Quitar el foco de los campos para evitar que se abra el teclado
+    FocusScope.of(context).unfocus();
+
     // Actualizar el ViewModel con los datos del formulario
     _viewModel.setNombre(_nombreCtrl.text);
     _viewModel.setTalla(_tallaCtrl.text);
     _viewModel.setMarca(_marcaCtrl.text);
-    _viewModel.setPrecioCompra(double.parse(_precioCompraCtrl.text.replaceAll(',', '.')));
-    _viewModel.setPrecioVenta(double.parse(_precioVentaCtrl.text.replaceAll(',', '.')));
-    _viewModel.setPrecioMinimo(double.parse(_precioMinimoCtrl.text.replaceAll(',', '.')));
-    
+    _viewModel.setPrecioCompra(
+      double.parse(_precioCompraCtrl.text.replaceAll(',', '.')),
+    );
+    _viewModel.setPrecioVenta(
+      double.parse(_precioVentaCtrl.text.replaceAll(',', '.')),
+    );
+    _viewModel.setPrecioMinimo(
+      double.parse(_precioMinimoCtrl.text.replaceAll(',', '.')),
+    );
+
     // Guardar la foto en el ViewModel
     if (_imagenSeleccionada != null && _imagenBase64 != null) {
       _viewModel.setFoto(_imagenBase64, _imagenSeleccionada!.path);
@@ -141,49 +153,15 @@ class _ProductoViewState extends State<ProductoView> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final exito = await _viewModel.guardarProducto();
-      
+
       if (!mounted) return;
       Navigator.pop(context); // Cerrar loading
 
       if (exito) {
-        // Mostrar diálogo de éxito
-        await showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.check_circle_rounded, color: Colors.green, size: 56),
-                SizedBox(height: 8),
-                Text(
-                  '¡Producto agregado!',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-            content: const Text(
-              'El producto ha sido guardado correctamente.',
-              textAlign: TextAlign.center,
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Aceptar'),
-              ),
-            ],
-          ),
-        );
-
         // Limpiar formulario
         _formKey.currentState!.reset();
         setState(() {
@@ -196,11 +174,12 @@ class _ProductoViewState extends State<ProductoView> {
           _precioVentaCtrl.clear();
           _precioMinimoCtrl.clear();
         });
+        // No mostrar ningún cuadro de texto ni abrir el teclado
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Cerrar loading
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al guardar: $e'),
@@ -289,7 +268,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
                 validator: (value) {
@@ -313,7 +295,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -331,7 +316,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -340,7 +328,9 @@ class _ProductoViewState extends State<ProductoView> {
               // Precio de compra
               TextFormField(
                 controller: _precioCompraCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Precio de compra',
                   hintText: '0',
@@ -350,7 +340,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
                 validator: (value) {
@@ -368,7 +361,9 @@ class _ProductoViewState extends State<ProductoView> {
               // Precio de venta
               TextFormField(
                 controller: _precioVentaCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Precio de venta',
                   hintText: '0',
@@ -378,7 +373,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
                 validator: (value) {
@@ -396,7 +394,9 @@ class _ProductoViewState extends State<ProductoView> {
               // Precio mínimo
               TextFormField(
                 controller: _precioMinimoCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Precio mínimo',
                   hintText: '0',
@@ -406,7 +406,10 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
                 validator: (value) {
@@ -436,10 +439,7 @@ class _ProductoViewState extends State<ProductoView> {
                   ),
                   child: const Text(
                     'Guardar Producto',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
