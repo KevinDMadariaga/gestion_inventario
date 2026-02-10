@@ -25,6 +25,7 @@ class _ProductoViewState extends State<ProductoView> {
   File? _imagenSeleccionada;
   String? _imagenBase64;
   final ImagePicker _picker = ImagePicker();
+  final List<String> _tallas = [];
 
   @override
   void initState() {
@@ -42,6 +43,17 @@ class _ProductoViewState extends State<ProductoView> {
     _precioVentaCtrl.dispose();
     _precioMinimoCtrl.dispose();
     super.dispose();
+  }
+
+  void _agregarTallaDesdeInput() {
+    final String t = _tallaCtrl.text.trim();
+    if (t.isEmpty) return;
+    if (!_tallas.contains(t)) {
+      setState(() {
+        _tallas.add(t);
+      });
+    }
+    _tallaCtrl.clear();
   }
 
   Future<void> _seleccionarImagen(ImageSource source) async {
@@ -130,7 +142,10 @@ class _ProductoViewState extends State<ProductoView> {
 
     // Actualizar el ViewModel con los datos del formulario
     _viewModel.setNombre(_nombreCtrl.text);
-    _viewModel.setTalla(_tallaCtrl.text);
+    final String tallaTextoFinal = _tallas.isNotEmpty
+        ? _tallas.join(', ')
+        : _tallaCtrl.text;
+    _viewModel.setTalla(tallaTextoFinal);
     _viewModel.setMarca(_marcaCtrl.text);
     _viewModel.setPrecioCompra(
       double.parse(_precioCompraCtrl.text.replaceAll(',', '.')),
@@ -169,6 +184,7 @@ class _ProductoViewState extends State<ProductoView> {
           _imagenBase64 = null;
           _nombreCtrl.clear();
           _tallaCtrl.clear();
+          _tallas.clear();
           _marcaCtrl.clear();
           _precioCompraCtrl.clear();
           _precioVentaCtrl.clear();
@@ -290,6 +306,11 @@ class _ProductoViewState extends State<ProductoView> {
                   labelText: 'Talla',
                   hintText: 'Ej: M, L, XL',
                   prefixIcon: const Icon(Icons.straighten),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Agregar talla',
+                    onPressed: _agregarTallaDesdeInput,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -301,7 +322,25 @@ class _ProductoViewState extends State<ProductoView> {
                     ),
                   ),
                 ),
+                onFieldSubmitted: (_) => _agregarTallaDesdeInput(),
               ),
+              const SizedBox(height: 8),
+              if (_tallas.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _tallas.map((t) {
+                    return Chip(
+                      label: Text(t),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      onDeleted: () {
+                        setState(() {
+                          _tallas.remove(t);
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
               const SizedBox(height: 16),
 
               // Marca

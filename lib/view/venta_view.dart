@@ -32,7 +32,7 @@ class _VentaViewState extends State<VentaView> {
     _viewModel = VentaViewModel();
     _viewModel.addListener(_onViewModelChanged);
     _buscarCtrl.addListener(_onBuscarChanged);
-    _clienteCtrl.text = _viewModel.cliente;
+    _clienteCtrl.text = 'Cliente General';
   }
 
   @override
@@ -175,6 +175,18 @@ class _VentaViewState extends State<VentaView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if ((producto['tallaSeleccionada'] ?? '')
+                      .toString()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Talla: ${producto['tallaSeleccionada']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -478,8 +490,7 @@ class _VentaViewState extends State<VentaView> {
   }
 
   Widget _buildBotonGuardar() {
-    final bool habilitado =
-        _productosAgregados.isNotEmpty && _clienteCtrl.text.trim().isNotEmpty;
+    final bool habilitado = _productosAgregados.isNotEmpty;
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -523,7 +534,6 @@ class _VentaViewState extends State<VentaView> {
     );
 
     showDialog(
-      
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -769,9 +779,28 @@ class _VentaViewState extends State<VentaView> {
       builder: (context) {
         final size = MediaQuery.of(context).size;
         bool mostrarMinimo = false;
+        String? tallaSeleccionada;
 
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            // Construimos lista de tallas del producto para poder seleccionar
+            final List<String> tallas = [];
+            final dynamic tallasRaw = producto['tallas'];
+            if (tallasRaw is List) {
+              for (final t in tallasRaw) {
+                final s = t.toString().trim();
+                if (s.isNotEmpty) tallas.add(s);
+              }
+            } else {
+              final textoTalla = (producto['talla'] ?? '').toString();
+              if (textoTalla.isNotEmpty) {
+                for (final t in textoTalla.split(',')) {
+                  final s = t.trim();
+                  if (s.isNotEmpty) tallas.add(s);
+                }
+              }
+            }
+
             final String precioMinimoTexto = mostrarMinimo
                 ? _mon.format(_asDouble(producto['precioMinimo']))
                 : '********';
@@ -798,14 +827,14 @@ class _VentaViewState extends State<VentaView> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
                       Center(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: _buildProductImage(producto, w: 220, h: 220),
                         ),
                       ),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 15),
                       Center(
                         child: Text(
                           'Precio venta: ' +
@@ -818,7 +847,7 @@ class _VentaViewState extends State<VentaView> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -831,7 +860,7 @@ class _VentaViewState extends State<VentaView> {
                                 color: Colors.black,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 5),
                           ],
                           IconButton(
                             icon: Icon(
@@ -849,6 +878,35 @@ class _VentaViewState extends State<VentaView> {
                           ),
                         ],
                       ),
+                      if (tallas.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Selecciona talla',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: tallas.map((t) {
+                            final bool selected = tallaSeleccionada == t;
+                            return ChoiceChip(
+                              label: Text(t),
+                              selected: selected,
+                              selectedColor: AppColors.accent.withOpacity(0.2),
+                              onSelected: (value) {
+                                setStateDialog(() {
+                                  tallaSeleccionada = value ? t : null;
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -860,8 +918,19 @@ class _VentaViewState extends State<VentaView> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    _seleccionarProducto(producto);
+                    // Si hay tallas y no se seleccionó ninguna, avisamos
+                    if (tallas.isNotEmpty && tallaSeleccionada == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Selecciona una talla para vender'),
+                        ),
+                      );
+                      return;
+                    }
+                    _seleccionarProducto(
+                      producto,
+                      tallaSeleccionada: tallaSeleccionada,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
@@ -877,16 +946,24 @@ class _VentaViewState extends State<VentaView> {
     );
   }
 
-  void _seleccionarProducto(Map<String, dynamic> producto) {
+  Future<void> _seleccionarProducto(
+    Map<String, dynamic> producto, {
+    String? tallaSeleccionada,
+  }) async {
     setState(() {
       final Map<String, dynamic> copia = Map<String, dynamic>.from(producto);
       // Guardamos el precio original para poder calcular/deshacer descuentos
       copia['precioVentaOriginal'] = _asDouble(copia['precioVenta']);
+      if (tallaSeleccionada != null && tallaSeleccionada.isNotEmpty) {
+        copia['tallaSeleccionada'] = tallaSeleccionada;
+      }
       _productosAgregados.add(copia);
       _resultadosBusqueda = [];
       _buscarCtrl.clear();
     });
-    Navigator.pop(context);
+    // Cerramos primero el diálogo de detalle y luego el modal de búsqueda
+    Navigator.pop(context); // Cierra el AlertDialog de tallas
+    Navigator.pop(context); // Cierra el BottomSheet de búsqueda
     FocusScope.of(context).unfocus();
   }
 
@@ -903,12 +980,19 @@ class _VentaViewState extends State<VentaView> {
       for (var producto in _productosAgregados) {
         final precioVenta = _asDouble(producto['precioVenta']);
         final precioCompra = _asDouble(producto['precioCompra']);
+        final precioOriginal = _asDouble(
+          producto['precioVentaOriginal'] ?? producto['precioVenta'],
+        );
+        final double descuentoProducto = (precioOriginal - precioVenta) > 0
+            ? (precioOriginal - precioVenta)
+            : 0.0;
+
         _viewModel.agregarItem(
           productoId: producto['_id'].toString(),
           nombre: producto['nombre']?.toString() ?? 'Sin nombre',
-          cantidad: 1,
           precioUnitario: precioVenta,
           costoUnitario: precioCompra,
+          descuentoProducto: descuentoProducto,
         );
       }
 
@@ -927,11 +1011,8 @@ class _VentaViewState extends State<VentaView> {
 
         setState(() {
           _productosAgregados = [];
-          _clienteCtrl.text = 'Cliente General';
           _buscarCtrl.clear();
         });
-
-        _viewModel.setCliente('Cliente General');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

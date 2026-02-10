@@ -395,8 +395,84 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
                       ),
                   ],
                   const SizedBox(height: 8),
-                  if ((p['talla'] ?? '').toString().isNotEmpty)
-                    Text('Talla: ${p['talla']}'),
+                  // Mostrar tallas disponibles y vendidas (tachadas)
+                  Builder(
+                    builder: (_) {
+                      final List<String> tallasDisponibles = [];
+                      final List<String> tallasVendidas = [];
+
+                      final dynamic tallasRaw = p['tallas'];
+                      if (tallasRaw is List) {
+                        for (final t in tallasRaw) {
+                          final s = t.toString().trim();
+                          if (s.isNotEmpty) tallasDisponibles.add(s);
+                        }
+                      } else {
+                        final textoTalla = (p['talla'] ?? '').toString();
+                        if (textoTalla.isNotEmpty) {
+                          textoTalla.split(',').forEach((t) {
+                            final s = t.trim();
+                            if (s.isNotEmpty) tallasDisponibles.add(s);
+                          });
+                        }
+                      }
+
+                      final dynamic tallasVendidasRaw = p['tallasVendidas'];
+                      if (tallasVendidasRaw is List) {
+                        for (final t in tallasVendidasRaw) {
+                          final s = t.toString().trim();
+                          if (s.isNotEmpty && !tallasVendidas.contains(s)) {
+                            tallasVendidas.add(s);
+                          }
+                        }
+                      }
+
+                      if (tallasDisponibles.isEmpty && tallasVendidas.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Column(
+                        children: [
+                          const Text(
+                            'Tallas',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              ...tallasDisponibles.map(
+                                (t) => Chip(
+                                  label: Text(t),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              ...tallasVendidas.map(
+                                (t) => Chip(
+                                  label: Text(
+                                    t,
+                                    style: const TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  backgroundColor: Colors.black54,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                   if ((p['categoria'] ?? '').toString().isNotEmpty)
                     Text('Categoría: ${p['categoria']}'),
                 ],
@@ -588,6 +664,38 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
         .toLowerCase()
         .trim();
 
+    // Calcular tallas disponibles y vendidas
+    final List<String> tallasDisponibles = [];
+    final List<String> tallasVendidas = [];
+
+    final dynamic tallasRaw = p['tallas'];
+    if (tallasRaw is List) {
+      for (final t in tallasRaw) {
+        final s = t.toString().trim();
+        if (s.isNotEmpty) tallasDisponibles.add(s);
+      }
+    } else {
+      final textoTalla = (p['talla'] ?? '').toString();
+      if (textoTalla.isNotEmpty) {
+        for (final t in textoTalla.split(',')) {
+          final s = t.trim();
+          if (s.isNotEmpty) tallasDisponibles.add(s);
+        }
+      }
+    }
+
+    final dynamic tallasVendidasRaw = p['tallasVendidas'];
+    if (tallasVendidasRaw is List) {
+      for (final t in tallasVendidasRaw) {
+        final s = t.toString().trim();
+        if (s.isNotEmpty && !tallasVendidas.contains(s)) {
+          tallasVendidas.add(s);
+          // Si una talla está en vendidas, la quitamos de disponibles por coherencia visual
+          tallasDisponibles.remove(s);
+        }
+      }
+    }
+
     return Card(
       elevation: 0.8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -625,12 +733,30 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        if ((p['talla'] ?? '').toString().isNotEmpty)
-                          Chip(
-                            label: Text('Talla: ${p['talla']}'),
+                        // Tallas disponibles (normales)
+                        ...tallasDisponibles.map(
+                          (t) => Chip(
+                            label: Text('Talla: $t'),
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
+                        ),
+                        // Tallas vendidas (tachadas y oscuras)
+                        ...tallasVendidas.map(
+                          (t) => Chip(
+                            label: Text(
+                              'Talla: $t',
+                              style: const TextStyle(
+                                decoration: TextDecoration.lineThrough,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            backgroundColor: Colors.black54,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
                         if ((p['categoria'] ?? '').toString().isNotEmpty)
                           Chip(
                             label: Text('${p['categoria']}'),

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:gestion_inventario/screens/producto/agregar_producto.dart';
 import 'package:gestion_inventario/screens/producto/buscar_producto.dart';
 import 'package:gestion_inventario/theme/app_colors.dart';
 import 'package:gestion_inventario/view/producto_view.dart';
-
 
 class InventarioMenuPage extends StatelessWidget {
   const InventarioMenuPage({super.key});
@@ -50,7 +48,9 @@ class InventarioMenuPage extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const BuscarInventarioPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const BuscarInventarioPage(),
+                    ),
                   );
                 },
               ),
@@ -87,11 +87,7 @@ class InventarioMenuPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icono,
-              size: 60,
-              color: AppColors.accent,
-            ),
+            Icon(icono, size: 60, color: AppColors.accent),
             const SizedBox(height: 16),
             Text(
               titulo,

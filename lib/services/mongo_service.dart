@@ -1,6 +1,7 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:mongo_dart/mongo_dart.dart' as m;
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId, where;
+import 'package:gestion_inventario/models/producto.dart';
 
 class MongoService {
   static final MongoService _instance = MongoService._internal();
@@ -47,10 +48,21 @@ class MongoService {
     return _colProducto.find().toList();
   }
 
+  // Versión tipada: obtiene todos los productos como modelos Producto
+  Future<List<Producto>> getProductos() async {
+    final docs = await getData();
+    return docs.map((e) => Producto.fromJson(e)).toList();
+  }
+
   Future<void> saveProduct(Map<String, dynamic> doc) async {
     await _ensureConnected();
     doc.putIfAbsent('estado', () => 'disponible'); // default
     await _colProducto.insert(doc);
+  }
+
+  // Versión tipada: guardar un Producto usando su toJson
+  Future<void> saveProductoModel(Producto producto) async {
+    await saveProduct(producto.toJson());
   }
 
   Future<List<Map<String, dynamic>>> getApartados() async {
@@ -64,6 +76,97 @@ class MongoService {
     await _ensureConnected();
     var collection = _db.collection('ventas');
     await collection.insert(venta);
+  }
+
+  /// Marca una talla específica de un producto como vendida.
+  ///
+  /// - Quita la talla de la lista `tallas` (disponibles).
+  /// - La agrega a `tallasVendidas`.
+  /// - Actualiza el campo legado `talla` (texto con comas).
+  /// - Si ya no quedan tallas disponibles, marca `estado = 'vendido'`.
+  Future<void> marcarTallaVendida(
+    dynamic productoId,
+    String tallaVendida,
+  ) async {
+    await _ensureConnected();
+
+    if (tallaVendida.trim().isEmpty) return;
+    final String talla = tallaVendida.trim();
+
+    // Selector robusto por _id (ObjectId o String)
+    m.SelectorBuilder selector;
+    if (productoId is ObjectId) {
+      selector = m.where.id(productoId);
+    } else {
+      final String idStr = productoId.toString();
+      try {
+        selector = m.where.id(m.ObjectId.parse(idStr));
+      } catch (_) {
+        selector = m.where.eq('_id', idStr);
+      }
+    }
+
+    // Obtenemos el documento actual del producto
+    final Map<String, dynamic>? doc = await _colProducto.findOne(selector.map);
+    if (doc == null) return;
+
+    // Construimos listas de tallas disponibles y vendidas actuales
+    final List<String> tallasDisponibles = <String>[];
+    final List<String> tallasVendidas = <String>[];
+
+    final dynamic tallasRaw = doc['tallas'];
+    if (tallasRaw is List) {
+      for (final t in tallasRaw) {
+        final s = t.toString().trim();
+        if (s.isNotEmpty) tallasDisponibles.add(s);
+      }
+    } else {
+      final String textoTalla = (doc['talla'] ?? '').toString();
+      if (textoTalla.isNotEmpty) {
+        for (final t in textoTalla.split(',')) {
+          final s = t.trim();
+          if (s.isNotEmpty) tallasDisponibles.add(s);
+        }
+      }
+    }
+
+    final dynamic tallasVendidasRaw = doc['tallasVendidas'];
+    if (tallasVendidasRaw is List) {
+      for (final t in tallasVendidasRaw) {
+        final s = t.toString().trim();
+        if (s.isNotEmpty && !tallasVendidas.contains(s)) {
+          tallasVendidas.add(s);
+        }
+      }
+    }
+
+    // Quitamos la talla vendida de disponibles y la agregamos a vendidas
+    tallasDisponibles.removeWhere(
+      (t) => t.toLowerCase() == talla.toLowerCase(),
+    );
+    if (!tallasVendidas.contains(talla)) {
+      tallasVendidas.add(talla);
+    }
+
+    final Map<String, dynamic> toSet = <String, dynamic>{
+      'tallas': tallasDisponibles,
+      'talla': tallasDisponibles.join(', '),
+      'tallasVendidas': tallasVendidas,
+    };
+
+    if (tallasDisponibles.isEmpty) {
+      toSet['estado'] = 'vendido';
+    }
+
+    var mb = m.modify;
+    toSet.forEach((k, v) => mb = mb.set(k, v));
+
+    try {
+      await _colProducto.updateOne(selector, mb);
+    } catch (e) {
+      // Fallback para versiones antiguas de mongo_dart
+      await _colProducto.update(selector.map, {r'$set': toSet});
+    }
   }
 
   Future<List<Map<String, dynamic>>> getProductosByNombre(String query) async {
