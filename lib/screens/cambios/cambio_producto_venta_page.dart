@@ -79,11 +79,11 @@ class _CambiosVentaPageState extends State<CambiosVentaPage> {
     setState(() {
       // reintenta mantener la venta seleccionada si sigue existiendo
       if (selId != null) {
-        final match = _ventas.firstWhere(
+        final Map<String, dynamic> match = _ventas.firstWhere(
           (v) => _oidHex(v['_id']) == selId,
-          orElse: () => {},
+          orElse: () => <String, dynamic>{},
         );
-        if (match is Map && match.isNotEmpty) {
+        if (match.isNotEmpty) {
           _ventaSel = match;
         }
       }
@@ -460,24 +460,24 @@ class _CambiosVentaPageState extends State<CambiosVentaPage> {
   // ------------ UI ------------
   @override
   Widget build(BuildContext context) {
-    const Color brandA = Color(0xFF9333EA); // violeta
-    const Color brandB = Color(0xFF06B6D4); // cian
-
     return Scaffold(
       appBar: AppBar(
-          elevation: 0,
-          centerTitle: true,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.swap_horiz, size: 24),
-              SizedBox(width: 8),
-              Text('Generar cambios', style: TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
-          foregroundColor: Colors.white,
-          backgroundColor: const Color.fromRGBO(244, 143, 177, 1)
+        elevation: 0,
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.swap_horiz, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Generar cambios',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
+        foregroundColor: Colors.white,
+        backgroundColor: const Color.fromRGBO(244, 143, 177, 1),
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureVentas,
         builder: (context, snap) {
@@ -593,7 +593,7 @@ class _CambiosVentaPageState extends State<CambiosVentaPage> {
                     subtitle: Text(
                       '${_fmt.format(total)}  •  ${_fmtFecha.format(f)}',
                     ),
-                    
+
                     onTap: () => setState(() {
                       _ventaSel = v;
                       _renglonSel = null;

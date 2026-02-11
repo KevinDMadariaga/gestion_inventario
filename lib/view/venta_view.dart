@@ -17,10 +17,8 @@ class VentaView extends StatefulWidget {
 class _VentaViewState extends State<VentaView> {
   late VentaViewModel _viewModel;
   final _buscarCtrl = TextEditingController();
-  final _clienteCtrl = TextEditingController();
 
   List<Map<String, dynamic>> _resultadosBusqueda = [];
-  Map<String, dynamic>? _productoSeleccionado;
   List<Map<String, dynamic>> _productosAgregados = [];
   Timer? _debounce;
 
@@ -32,7 +30,6 @@ class _VentaViewState extends State<VentaView> {
     _viewModel = VentaViewModel();
     _viewModel.addListener(_onViewModelChanged);
     _buscarCtrl.addListener(_onBuscarChanged);
-    _clienteCtrl.text = 'Cliente General';
   }
 
   @override
@@ -42,7 +39,6 @@ class _VentaViewState extends State<VentaView> {
     _buscarCtrl.removeListener(_onBuscarChanged);
     _debounce?.cancel();
     _buscarCtrl.dispose();
-    _clienteCtrl.dispose();
 
     super.dispose();
   }
@@ -276,6 +272,8 @@ class _VentaViewState extends State<VentaView> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             Future<void> buscarYMostrar() async {
+              // Oculta el teclado antes de ejecutar la búsqueda
+              FocusScope.of(context).unfocus();
               await _buscarProductos(_buscarCtrl.text.trim());
               if (mounted) setModalState(() {});
             }
@@ -986,14 +984,26 @@ class _VentaViewState extends State<VentaView> {
         final double descuentoProducto = (precioOriginal - precioVenta) > 0
             ? (precioOriginal - precioVenta)
             : 0.0;
+        final dynamic rawId = producto['_id'];
+        final String productoIdStr = rawId?.toString() ?? '';
+        final String? talla =
+            (producto['tallaSeleccionada'] ?? '').toString().trim().isEmpty
+            ? null
+            : (producto['tallaSeleccionada'] ?? '').toString().trim();
 
         _viewModel.agregarItem(
-          productoId: producto['_id'].toString(),
+          productoId: productoIdStr,
           nombre: producto['nombre']?.toString() ?? 'Sin nombre',
           precioUnitario: precioVenta,
           costoUnitario: precioCompra,
+          talla: talla,
           descuentoProducto: descuentoProducto,
         );
+
+        // Actualizamos inventario por talla vendida si aplica
+        if (talla != null && rawId != null) {
+          await MongoService().marcarTallaVendida(rawId, talla);
+        }
       }
 
       final exito = await _viewModel.guardarVenta();

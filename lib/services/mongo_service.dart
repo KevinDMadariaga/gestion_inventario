@@ -78,12 +78,6 @@ class MongoService {
     await collection.insert(venta);
   }
 
-  /// Marca una talla específica de un producto como vendida.
-  ///
-  /// - Quita la talla de la lista `tallas` (disponibles).
-  /// - La agrega a `tallasVendidas`.
-  /// - Actualiza el campo legado `talla` (texto con comas).
-  /// - Si ya no quedan tallas disponibles, marca `estado = 'vendido'`.
   Future<void> marcarTallaVendida(
     dynamic productoId,
     String tallaVendida,
@@ -106,8 +100,10 @@ class MongoService {
       }
     }
 
-    // Obtenemos el documento actual del producto
-    final Map<String, dynamic>? doc = await _colProducto.findOne(selector.map);
+    // Obtenemos el documento actual del producto (compat sin $query)
+    final Map<String, dynamic>? doc = await _colProducto.findOne(
+      _toQuery(selector),
+    );
     if (doc == null) return;
 
     // Construimos listas de tallas disponibles y vendidas actuales
@@ -164,8 +160,8 @@ class MongoService {
     try {
       await _colProducto.updateOne(selector, mb);
     } catch (e) {
-      // Fallback para versiones antiguas de mongo_dart
-      await _colProducto.update(selector.map, {r'$set': toSet});
+      // Fallback para versiones antiguas de mongo_dart (sin $query)
+      await _colProducto.update(_toQuery(selector), {r'$set': toSet});
     }
   }
 
@@ -259,9 +255,8 @@ class MongoService {
       // final ok = (res.isSuccess == true) || (res.nModified ?? 0) > 0;
       // if (!ok) { /* opcional: log */ }
     } catch (e) {
-      // Fallback para versiones antiguas: update “crudo”
-      final rawSelector = selector.map; // mapa del where
-      await col.update(rawSelector, {r'$set': toSet});
+      // Fallback para versiones antiguas: update “crudo” (sin $query)
+      await col.update(_toQuery(selector), {r'$set': toSet});
     }
   }
 
@@ -484,9 +479,12 @@ class MongoService {
       'updatedAt': DateTime.now().toIso8601String(),
     };
     if (prendas != null) toSet['prendas'] = prendas;
-    if (estado != null && estado.trim().isNotEmpty)
+    if (estado != null && estado.trim().isNotEmpty) {
       toSet['estado'] = estado.trim();
-    if (extra != null && extra.isNotEmpty) toSet.addAll(extra);
+    }
+    if (extra != null && extra.isNotEmpty) {
+      toSet.addAll(extra);
+    }
 
     if (toSet.isEmpty) return;
 
@@ -504,8 +502,8 @@ class MongoService {
     try {
       await col.updateOne(selector, mb);
     } catch (e) {
-      final rawSelector = selector.map;
-      await col.update(rawSelector, {r'$set': toSet});
+      // Fallback compat (sin $query)
+      await col.update(_toQuery(selector), {r'$set': toSet});
     }
   }
 
@@ -579,10 +577,8 @@ class MongoService {
     Map<String, dynamic> nuevoRenglon,
     Map<String, dynamic> registroCambio,
   ) async {
-    // ignore: unnecessary_null_comparison
-    if (_db == null) {
-      throw StateError('MongoService no conectado');
-    }
+    await _ensureConnected();
+
     final ventas = _ventasCol();
     final oid = _objectIdFromHex(ventaIdHex);
 
@@ -624,16 +620,24 @@ class MongoService {
     nuevosProductos[index] = nuevo;
 
     // 5) Actualiza la venta: set productos + push cambios + marca updatedAt
-    await ventas.updateOne(
-      _toQuery(where.id(oid)), // 👈 compat seguro
-      {
+    //    Usamos SelectorBuilder + ModifierBuilder para evitar problemas con $query
+    var mb = modify
+        .set('productos', nuevosProductos)
+        .set('updatedAt', DateTime.now().toIso8601String())
+        .push('cambios', registroCambio);
+
+    try {
+      await ventas.updateOne(where.id(oid), mb);
+    } catch (e) {
+      // Fallback para versiones antiguas de mongo_dart sin updateOne (sin $query)
+      await ventas.update(_toQuery(where.id(oid)), {
         r'$set': {
           'productos': nuevosProductos,
           'updatedAt': DateTime.now().toIso8601String(),
         },
         r'$push': {'cambios': registroCambio},
-      },
-    );
+      });
+    }
   }
 
   Future<void> marcarProductosDisponibles(List<String> ids) async {
@@ -676,12 +680,13 @@ class MongoService {
 
   bool _isValidHex(String s) => RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(s);
 
-  Map<String, dynamic> _toQuery(SelectorBuilder sb) {
-    // Para compatibilidad con versiones de mongo_dart:
-    final map = sb.map;
-    if (map.containsKey(r'$query') && map[r'$query'] is Map) {
-      return (map[r'$query'] as Map).cast<String, dynamic>();
+  /// Extrae un filtro "plano" desde un SelectorBuilder, quitando
+  /// la envoltura `$query` que algunas versiones de mongo_dart agregan.
+  Map<String, dynamic> _toQuery(m.SelectorBuilder sb) {
+    final Map raw = sb.map;
+    if (raw.containsKey(r'$query') && raw[r'$query'] is Map) {
+      return (raw[r'$query'] as Map).cast<String, dynamic>();
     }
-    return map.cast<String, dynamic>();
+    return raw.cast<String, dynamic>();
   }
 }

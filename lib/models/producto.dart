@@ -85,9 +85,6 @@ class Producto {
   }
 
   Map<String, dynamic> toJson() {
-    // Solo persistimos los campos solicitados:
-    // id (como _id en Mongo), nombre, tallas, marca, precioCompra,
-    // precioVenta, precioMinimo, fecha (fechaRegistro), foto y estado.
     final map = <String, dynamic>{
       'nombre': nombre,
       'tallas': tallas,
@@ -97,6 +94,8 @@ class Producto {
       'precioMinimo': precioMinimo,
       'fechaRegistro': fechaRegistro.toIso8601String(),
       'foto': foto,
+      'fotoBase64': fotoBase64,
+      'fotoMime': fotoMime,
       'estado': estado,
     };
 

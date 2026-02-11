@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:gestion_inventario/services/mongo_service.dart';
 import 'package:gestion_inventario/view/home_view.dart';
 
-  void main() {
-WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MainApp());
 }
 
@@ -37,6 +37,4 @@ class MainApp extends StatelessWidget {
       ),
     );
   }
-
-
 }

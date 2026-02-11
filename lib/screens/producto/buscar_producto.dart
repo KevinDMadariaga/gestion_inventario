@@ -273,15 +273,16 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
         return StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             insetPadding: const EdgeInsets.symmetric(
-              horizontal: 30,
+              horizontal: 40,
               vertical: 40,
             ),
             title: Center(
               child: Text(
                 (p['nombre'] ?? '').toString().toUpperCase(),
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 22,
+                  fontSize: 20,
                   letterSpacing: 1.2,
                 ),
               ),
@@ -475,15 +476,16 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
                   ),
                   if ((p['categoria'] ?? '').toString().isNotEmpty)
                     Text('Categoría: ${p['categoria']}'),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cerrar'),
+                    ),
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cerrar'),
-              ),
-            ],
           ),
         );
       },
@@ -706,12 +708,12 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
           _mostrarDetalle(p);
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+          padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
           child: Row(
             children: [
               // Imagen
-              _buildProductoImage(p, w: 76, h: 76, radius: 12),
-              const SizedBox(width: 12),
+              _buildProductoImage(p, w: 96, h: 96, radius: 14),
+              const SizedBox(width: 14),
 
               // Info
               Expanded(
@@ -733,10 +735,16 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        // Tallas disponibles (normales)
+                        if (tallasDisponibles.isNotEmpty ||
+                            tallasVendidas.isNotEmpty)
+                          const Text(
+                            'Talla:',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        // Tallas disponibles (cada talla en su propio chip)
                         ...tallasDisponibles.map(
                           (t) => Chip(
-                            label: Text('Talla: $t'),
+                            label: Text(t),
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -745,7 +753,7 @@ class _BuscarInventarioPageState extends State<BuscarInventarioPage> {
                         ...tallasVendidas.map(
                           (t) => Chip(
                             label: Text(
-                              'Talla: $t',
+                              t,
                               style: const TextStyle(
                                 decoration: TextDecoration.lineThrough,
                                 color: Colors.white,
